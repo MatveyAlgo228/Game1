@@ -1,0 +1,214 @@
+import pygame
+import math
+import random
+
+import pygame.transform
+
+
+
+pygame.init()
+clock = pygame.time.Clock()
+
+
+screen_width = 1024
+screen_height = 768
+screen = pygame.display.set_mode((screen_width, screen_height))
+bullets = pygame.sprite.Group()
+enemies = pygame.sprite.Group()
+#monster_kill = pygame.mixer.Sound('./music/kill.ogg')
+class GameSprite(pygame.sprite.Sprite):
+    def __init__(self, picture, x,y, w,h,speed, hp):
+        super().__init__()
+        self.image = pygame.transform.scale(pygame.image.load(picture), (w,h))
+        self.rect = self.image.get_rect(topleft=(x,y))
+        self.speed = speed
+        self.hp = hp
+   
+    def draw(self):
+        screen.blit(self.image, self.rect)
+
+
+class Hero(GameSprite):
+    def move(self, keys):
+        self.image = pygame.image.load('img/hero.png')
+        if keys[pygame.K_w] and self.rect.y > 0:
+            self.image = pygame.image.load('img/hero3.png')
+            self.rect.y -= self.speed
+        if keys[pygame.K_s] and self.rect.y < screen_height-self.rect.height:
+            self.image = pygame.image.load('img/hero1.png')
+            self.rect.y += self.speed
+        if keys[pygame.K_d] and self.rect.x < screen_width-self.rect.width:
+            self.rect.x += self.speed
+        if keys[pygame.K_a] and self.rect.x > 0:
+            self.image = pygame.image.load('img/hero2.png')
+            self.rect.x -= self.speed
+    def fire(self, keys):
+        if len(bullets) < 1:
+            if keys[pygame.K_UP]:
+                bullet = Bullet('img/fireball.png',self.rect.x, self.rect.y, 50, 50, 10, 1, "up")
+                bullets.add(bullet)
+            if keys[pygame.K_DOWN]:
+                bullet = Bullet('img/fireball.png',self.rect.x, self.rect.y, 50, 50, 10, 1, "down")
+                bullets.add(bullet)
+            if keys[pygame.K_LEFT]:
+                bullet = Bullet('img/fireball.png',self.rect.x, self.rect.y, 50, 50, 10, 1, "left")
+                bullets.add(bullet)
+            if keys[pygame.K_RIGHT]:
+                bullet = Bullet('img/fireball.png',self.rect.x, self.rect.y, 50, 50, 10, 1, "right")
+                bullets.add(bullet)
+class Bullet(GameSprite):
+    def __init__(self, picture, x,y, w,h,speed, hp, direction):
+        super().__init__(picture, x,y, w,h,speed, hp)
+        self.direction = direction
+    def update(self):
+        if self.direction == "up":
+            self.rect.y -= self.speed
+        if self.direction == "down":
+            self.rect.y += self.speed
+        if self.direction == "left":
+            self.rect.x -= self.speed
+        if self.direction == "right":
+            self.rect.x += self.speed
+        if self.rect.x > screen_width or self.rect.x < 0 or self.rect.y < 0 or self.rect.y > screen_height:
+            self.kill()
+class Enemy(GameSprite):
+    def follow_hero(self, hero):
+        dx = hero.rect.x - self.rect.x
+        dy = hero.rect.y - self.rect.y
+        distance = math.sqrt(dx**2 + dy**2)
+        if distance != 0:
+            dx /= distance
+            dy /= distance
+        self.rect.x += dx * self.speed
+        self.rect.y += dy * self.speed
+
+def save_score(frag):
+    high_score = load_score()
+    if frag > int(high_score):
+        with open('score.txt', "r") as file:
+            file.write(str(frag))
+
+def load_score():
+    try:
+        with open('score.txt', "r") as file:
+            return file.read()
+    except:
+        return '0'
+
+
+def play_music(path):
+    pygame.mixer.music.load(path)
+    pygame.mixer.music.play(-1)
+
+
+def show_menu():
+    #play_music('music/menu.mp3')
+    menu = True
+    game = False
+    menu_img = pygame.transform.scale(pygame.image.load('img/menu_screen.jpg'), (screen_width, screen_height))
+
+
+    font = pygame.font.SysFont('Comic Sans MS', 50)
+    start = font.render("Пробел - начать игру", True, (255, 255, 255))
+    quit = font.render("Q - выход", True, (255, 255, 255))
+
+
+    start_rect = start.get_rect(center=(screen_width/2, screen_height/2 - 50))
+    quit_rect = quit.get_rect(center=(screen_width/2, screen_height/2 + 50))
+
+
+    while menu:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    menu = False
+                    game = True
+                elif event.key == pygame.K_q:
+                    pygame.quit()
+
+
+        screen.blit(menu_img, (0, 0))
+        screen.blit(start, start_rect)
+        screen.blit(quit, quit_rect)
+        pygame.display.flip()
+        clock.tick(30)
+
+
+    if game:
+        game_run()
+
+
+def game_over(frag):
+    game_over = pygame.transform.scale(pygame.image.load('img/game_over.jpg'), (screen_width, screen_height))
+    font = pygame.font.SysFont('Comic Sans MS', 50)
+    start = font.render("R - начать заново",  True, (255,255,255))
+    quit = font.render("Q - выход", True, (255,255,255))
+    score = font.render("Заработанно очков: "+str(frag), True, (255,255,255))
+    high_score = font.render("Лучший счет: "+ load_score(), True, (255,255,255))
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    game_run()
+                if event.key == pygame.K_q:
+                    pygame.quit()
+
+        screen.blit(game_over, (0,0))
+        screen.blit(start, (250,540))
+        screen.blit(quit, (400,600))
+        screen.blit(score, (350,50))
+        screen.blit(high_score, (400,150))
+
+        pygame.display.flip()
+
+def game_run():
+    bg = pygame.transform.scale(pygame.image.load('img/bg_game.jpg'), (screen_width, screen_height))
+    #play_music('music/game_music.mp3')
+    hero = Hero('img/hero.png',0,0,50,50,5,100)
+    if len(enemies) < 3:
+        for _ in range(3):
+            enemy = Enemy('img/monster.png',random.randint(0, screen_width - 50),random.randint(0, screen_height - 50),100,100,3,100)
+            enemies.add(enemy)
+    font = pygame.font.SysFont('Comic Sans MS', 40)
+    frag = 0
+    end = False
+    while not end:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                end = True
+        keys = pygame.key.get_pressed()
+        screen.blit(bg, (0, 0))
+        draw_frag = font.render("Уничтожено: "+str(frag), True, (255,255,255))
+        health = font.render("ХП: "+str(hero.hp), True, (255,255,255))
+        screen.blit(health, (20,20))
+        screen.blit(draw_frag, (20,60))
+        hero.draw()
+        hero.move(keys)
+        hero.fire(keys)
+        bullets.draw(screen)
+        bullets.update()
+        enemies.draw(screen)
+        for enemy in enemies:
+            enemy.follow_hero(hero)
+        for monster in enemies:
+            if pygame.sprite.spritecollide(monster, bullets, True):
+                monster.hp -= 20
+                if monster.hp <= 0:
+                    monster.kill()
+                    frag += 1
+                    enemy = Enemy('img/monster.png',random.randint(0, screen_width - 50),random.randint(0, screen_height - 50),100,100,3,100)
+                    enemies.add(enemy)
+                    monster_kill.play()
+        if pygame.sprite.spritecollide(hero, enemies, False):
+            hero.hp -= 1
+        if hero.hp < 1:
+            #hero.kill.play()
+            save_score(frag)
+            game_over(frag)
+        pygame.display.flip()
+        clock.tick(30)
+
+
+show_menu()
